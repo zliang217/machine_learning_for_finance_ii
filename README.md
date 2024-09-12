@@ -1,5 +1,5 @@
 # Machine Learning for Finance II
-Repository for Machine Learning for Finance II (Math 629) at UMich, Fall 2024. 
+Course Material for Machine Learning for Finance II (Math 629) at UMich, Fall 2024. 
 
 **Instructor:** [Prof. Ali Nazari](https://lsa.umich.edu/math/people/faculty---lecturers/anazari.html).
 
