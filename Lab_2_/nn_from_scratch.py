@@ -22,7 +22,9 @@ def vectorized_result(j):
     into a corresponding desired output from the neural network.
 
     """
-    #TODO
+    e = np.zeros((10, 1))
+    e[j] = 1.0
+    return e
 
 def sigmoid(z):
     """The sigmoid function."""
