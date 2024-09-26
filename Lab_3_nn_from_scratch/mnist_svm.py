@@ -23,8 +23,8 @@ def svm_baseline():
     predictions = [int(a) for a in clf.predict(test_data[0])]
     print("Prediction complete. Calculating accuracy now.")
     num_correct = sum(int(a == y) for a, y in zip(predictions, test_data[1]))
-    print("Baseline classifier using an SVM.")
-    print("{} of {} values correct.".format(num_correct, len(test_data[1])))
+    print("This is a baseline classifier using an SVM.")
+    print("{} of {} values are correct.".format(num_correct, len(test_data[1])))
 
 if __name__ == "__main__":
     svm_baseline()

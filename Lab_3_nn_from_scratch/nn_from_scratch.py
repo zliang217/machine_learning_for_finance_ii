@@ -11,6 +11,7 @@ and omits many desirable features.
 import json
 import random
 import sys
+from tqdm import tqdm
 
 # Third-party libraries
 import numpy as np
@@ -140,7 +141,8 @@ class Network(object):
             monitor_evaluation_cost=False,
             monitor_evaluation_accuracy=False,
             monitor_training_cost=False,
-            monitor_training_accuracy=False):
+            monitor_training_accuracy=False,
+            verbose=False):
         """Train the neural network using mini-batch stochastic gradient
         descent.  The ``training_data`` is a list of tuples ``(x, y)``
         representing the training inputs and the desired outputs.  The
@@ -166,13 +168,15 @@ class Network(object):
         evaluation_cost, evaluation_accuracy = [], []
         training_cost, training_accuracy = [], []
 
-        # Why xrange? Answer here: 
-        for j in xrange(epochs):
+        for j in range(epochs):
             random.shuffle(training_data)
             mini_batches = #TODO: Make a list of mini-batches here. Mini-batches should be arrays.
             
-            for mini_batch in mini_batches:
+            for mini_batch in (pbar:= tqdm(mini_batches, disable= not verbose)):
                 # TODO: Update the weights and biases using a single mini batch. Call update_mini_batch.
+                if verbose:
+                    cost = self.total_cost(training_data, lmbda)
+                    pbar.set_description("Cost on training data: {}".format(cost))
             
             # Print the progress of the training
             print("Epoch {} training complete".format(j))
@@ -245,7 +249,7 @@ class Network(object):
         # second-last layer, and so on.  It's a renumbering of the
         # scheme in the book, used here to take advantage of the fact
         # that Python can use negative indices in lists.
-        for l in xrange(2, self.num_layers):
+        for l in range(2, self.num_layers):
             z = # TODO: Pre activation
             sp = sigmoid_prime(z)
             delta = # TODO: New gradient
