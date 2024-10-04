@@ -29,11 +29,11 @@ def vectorized_result(j):
 
 def sigmoid(z):
     """The sigmoid function."""
-    #TODO
+    return 1.0/(1.0+np.exp(-z))
 
 def sigmoid_prime(z):
     """Derivative of the sigmoid function."""
-    #TODO
+    return sigmoid(z)*(1-sigmoid(z))
 
 
 #### Define the quadratic and cross-entropy cost functions
@@ -51,7 +51,7 @@ class QuadraticCost(object):
     @staticmethod
     def delta(z, a, y):
         """Return the error delta from the output layer. That is, a = sigmoid(z) and you need to return dCost/dz"""
-        #TODO
+        return (a-y) * sigmoid_prime(z)
 
 
 class CrossEntropyCost(object):
@@ -74,7 +74,7 @@ class CrossEntropyCost(object):
         Give the simplest expression you can.
 
         """
-        #TODO
+        return (a-y)
 
 
 #### Main Network class
@@ -109,7 +109,9 @@ class Network(object):
         layers.
 
         """
-        #TODO
+        self.biases = [np.random.randn(y, 1) for y in self.sizes[1:]]
+        self.weights = [np.random.randn(y, x)/np.sqrt(x)
+                        for x, y in zip(self.sizes[:-1], self.sizes[1:])]
 
     def large_weight_initializer(self):
         """Initialize the weights using a Gaussian distribution with mean 0
@@ -127,12 +129,14 @@ class Network(object):
         instead.
 
         """
-        #TODO
+        self.biases = [np.random.randn(y, 1) for y in self.sizes[1:]]
+        self.weights = [np.random.randn(y, x)
+                        for x, y in zip(self.sizes[:-1], self.sizes[1:])]
 
     def feedforward(self, a):
         """Return the output of the network if ``a`` is input."""
         for b, w in zip(self.biases, self.weights):
-            a = #TODO
+            a = sigmoid((w@a) +b)
         return a
 
     def SGD(self, training_data, epochs, mini_batch_size, eta,
@@ -233,16 +237,16 @@ class Network(object):
         # feedforward
         activation = x
         activations = [x] # list to store all the activations, layer by layer
-        zs = [] # list to store all the z vectors, layer by layer
+        zs = [] # list to store all the z vectors (preactivatuib), layer by layer
         for b, w in zip(self.biases, self.weights):
-            z = # Next pre actiivation
+            z = (w@activation) +b# Next pre actiivation
             zs.append(z)
-            activation = # Next activation
+            activation = sigmoid(z)# Next activation
             activations.append(activation)
         # backward pass
-        delta = # TODO: Get delta for last layer
-        nabla_b[-1] = # TODO: Get bias gradient for last layer
-        nabla_w[-1] = # TODO: Get weight gradient for last layer
+        delta = self.cost.delta(zs[-1], activations[-1], y) # TODO: Get delta for last layer
+        nabla_b[-1] = delta # TODO: Get bias gradient for last layer
+        nabla_w[-1] = np.matmul(delta, activations[-2].transpose())# TODO: Get weight gradient for last layer
         # Note that the variable l in the loop below is used a little
         # differently to the notation in Chapter 2 of the book.  Here,
         # l = 1 means the last layer of neurons, l = 2 is the
@@ -250,11 +254,11 @@ class Network(object):
         # scheme in the book, used here to take advantage of the fact
         # that Python can use negative indices in lists.
         for l in range(2, self.num_layers):
-            z = # TODO: Pre activation
+            z = zs[-l]# TODO: Pre activation
             sp = sigmoid_prime(z)
-            delta = # TODO: New gradient
-            nabla_b[-l] = #TODO: New bias gradient
-            nabla_w[-l] = # TODO: New weight gradient
+            delta = np.dot(self.weights[-l+1].transpose(), delta) * sp# TODO: New gradient
+            nabla_b[-l] = delta#TODO: New bias gradient
+            nabla_w[-l] = np.matmul(delta, activations[-l-1].transpose())# TODO: New weight gradient
         return (nabla_b, nabla_w)
 
     def accuracy(self, data, convert=False):
@@ -286,7 +290,7 @@ class Network(object):
         else:
             results = [(np.argmax(self.feedforward(x)), y)
                         for (x, y) in data]
-        return #TODO: Return the accuracy
+        return sum([int(i==j) for i,j in results]) #TODO: Return the accuracy
 
     def total_cost(self, data, lmbda, convert=False):
         """Return the total cost for the data set ``data``.  The flag
@@ -299,8 +303,8 @@ class Network(object):
         for x, y in data:
             a = self.feedforward(x)
             if convert: y = vectorized_result(y)
-            cost += # TODO: Add cost for this data point
-        cost += # TODO: Add regularization cost
+            cost += self.cost.fn(a, y) # TODO: Add cost for this data point
+        cost += 0.5*(lmbda/len(data))*sum([np.linalg.norm(w)**2 for w in self.weights])# TODO: Add regularization cost
         return cost
 
     def save(self, filename):
