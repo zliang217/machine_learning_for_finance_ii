@@ -1,8 +1,13 @@
-"""A module to implement the stochastic gradient descent learning
-algorithm for a feedforward neural network, with regularization.  Gradients are calculated
-using backpropagation.  Note that I have focused on making the code
-simple, easily readable, and easily modifiable.  It is not optimized,
-and omits many desirable features.
+"""network2.py
+~~~~~~~~~~~~~~
+
+An improved version of network.py, implementing the stochastic
+gradient descent learning algorithm for a feedforward neural network.
+Improvements include the addition of the cross-entropy cost function,
+regularization, and better initialization of network weights.  Note
+that I have focused on making the code simple, easily readable, and
+easily modifiable.  It is not optimized, and omits many desirable
+features.
 
 """
 
@@ -15,25 +20,6 @@ from tqdm import tqdm
 
 # Third-party libraries
 import numpy as np
-
-#### Miscellaneous functions
-def vectorized_result(j):
-    """Return a 10-dimensional unit vector with a 1.0 in the j'th position
-    and zeroes elsewhere.  This is used to convert a digit (0...9)
-    into a corresponding desired output from the neural network.
-
-    """
-    e = np.zeros((10, 1))
-    e[j] = 1.0
-    return e
-
-def sigmoid(z):
-    """The sigmoid function."""
-    return 1.0/(1.0+np.exp(-z))
-
-def sigmoid_prime(z):
-    """Derivative of the sigmoid function."""
-    return sigmoid(z)*(1-sigmoid(z))
 
 
 #### Define the quadratic and cross-entropy cost functions
@@ -50,7 +36,7 @@ class QuadraticCost(object):
 
     @staticmethod
     def delta(z, a, y):
-        """Return the error delta from the output layer. That is, a = sigmoid(z) and you need to return dCost/dz"""
+        """Return the error delta from the output layer."""
         return (a-y) * sigmoid_prime(z)
 
 
@@ -70,8 +56,10 @@ class CrossEntropyCost(object):
 
     @staticmethod
     def delta(z, a, y):
-        """Return the error delta from the output layer. That is, a = sigmoid(z) and you need to return dCost/dz.
-        Give the simplest expression you can.
+        """Return the error delta from the output layer.  Note that the
+        parameter ``z`` is not used by the method.  It is included in
+        the method's parameters in order to make the interface
+        consistent with the delta method for other cost classes.
 
         """
         return (a-y)
@@ -136,7 +124,7 @@ class Network(object):
     def feedforward(self, a):
         """Return the output of the network if ``a`` is input."""
         for b, w in zip(self.biases, self.weights):
-            a = sigmoid((w@a) +b)
+            a = sigmoid(np.dot(w, a)+b)
         return a
 
     def SGD(self, training_data, epochs, mini_batch_size, eta,
@@ -166,22 +154,21 @@ class Network(object):
         are empty if the corresponding flag is not set.
 
         """
-        if evaluation_data:
-            n_data = len(evaluation_data)
+        if evaluation_data: n_data = len(evaluation_data)
         n = len(training_data)
         evaluation_cost, evaluation_accuracy = [], []
         training_cost, training_accuracy = [], []
-
         for j in range(epochs):
             random.shuffle(training_data)
-            mini_batches = #TODO: Make a list of mini-batches here. Mini-batches should be arrays.
-            
+            mini_batches = [
+                training_data[k:k+mini_batch_size]
+                for k in range(0, n, mini_batch_size)]
             for mini_batch in (pbar:= tqdm(mini_batches, disable= not verbose)):
-                # TODO: Update the weights and biases using a single mini batch. Call update_mini_batch.
+                self.update_mini_batch(
+                    mini_batch, eta, lmbda, len(training_data))
                 if verbose:
                     cost = self.total_cost(training_data, lmbda)
                     pbar.set_description("Cost on training data: {}".format(cost))
-            
             # Print the progress of the training
             print("Epoch {} training complete".format(j))
             if monitor_training_cost:
@@ -203,7 +190,6 @@ class Network(object):
                 print("Accuracy on evaluation data: {} / {}".format(
                     self.accuracy(evaluation_data), n_data))
             print()
-        
         return evaluation_cost, evaluation_accuracy, \
             training_cost, training_accuracy
 
@@ -217,11 +203,10 @@ class Network(object):
         """
         nabla_b = [np.zeros(b.shape) for b in self.biases]
         nabla_w = [np.zeros(w.shape) for w in self.weights]
-        
         for x, y in mini_batch:
             delta_nabla_b, delta_nabla_w = self.backprop(x, y)
             nabla_b = [nb+dnb for nb, dnb in zip(nabla_b, delta_nabla_b)]
-            nabla_w = #TODO: update weights the same way as biases
+            nabla_w = [nw+dnw for nw, dnw in zip(nabla_w, delta_nabla_w)]
         self.weights = [(1-eta*(lmbda/n))*w-(eta/len(mini_batch))*nw
                         for w, nw in zip(self.weights, nabla_w)]
         self.biases = [b-(eta/len(mini_batch))*nb
@@ -237,16 +222,16 @@ class Network(object):
         # feedforward
         activation = x
         activations = [x] # list to store all the activations, layer by layer
-        zs = [] # list to store all the z vectors (preactivatuib), layer by layer
+        zs = [] # list to store all the z vectors, layer by layer
         for b, w in zip(self.biases, self.weights):
-            z = (w@activation) +b# Next pre actiivation
+            z = np.dot(w, activation)+b
             zs.append(z)
-            activation = sigmoid(z)# Next activation
+            activation = sigmoid(z)
             activations.append(activation)
         # backward pass
-        delta = self.cost.delta(zs[-1], activations[-1], y) # TODO: Get delta for last layer
-        nabla_b[-1] = delta # TODO: Get bias gradient for last layer
-        nabla_w[-1] = np.matmul(delta, activations[-2].transpose())# TODO: Get weight gradient for last layer
+        delta = (self.cost).delta(zs[-1], activations[-1], y)
+        nabla_b[-1] = delta
+        nabla_w[-1] = np.dot(delta, activations[-2].transpose())
         # Note that the variable l in the loop below is used a little
         # differently to the notation in Chapter 2 of the book.  Here,
         # l = 1 means the last layer of neurons, l = 2 is the
@@ -254,11 +239,11 @@ class Network(object):
         # scheme in the book, used here to take advantage of the fact
         # that Python can use negative indices in lists.
         for l in range(2, self.num_layers):
-            z = zs[-l]# TODO: Pre activation
+            z = zs[-l]
             sp = sigmoid_prime(z)
-            delta = np.dot(self.weights[-l+1].transpose(), delta) * sp# TODO: New gradient
-            nabla_b[-l] = delta#TODO: New bias gradient
-            nabla_w[-l] = np.matmul(delta, activations[-l-1].transpose())# TODO: New weight gradient
+            delta = np.dot(self.weights[-l+1].transpose(), delta) * sp
+            nabla_b[-l] = delta
+            nabla_w[-l] = np.dot(delta, activations[-l-1].transpose())
         return (nabla_b, nabla_w)
 
     def accuracy(self, data, convert=False):
@@ -290,7 +275,7 @@ class Network(object):
         else:
             results = [(np.argmax(self.feedforward(x)), y)
                         for (x, y) in data]
-        return sum([int(i==j) for i,j in results]) #TODO: Return the accuracy
+        return sum(int(x == y) for (x, y) in results)
 
     def total_cost(self, data, lmbda, convert=False):
         """Return the total cost for the data set ``data``.  The flag
@@ -303,8 +288,9 @@ class Network(object):
         for x, y in data:
             a = self.feedforward(x)
             if convert: y = vectorized_result(y)
-            cost += self.cost.fn(a, y) # TODO: Add cost for this data point
-        cost += 0.5*(lmbda/len(data))*sum([np.linalg.norm(w)**2 for w in self.weights])# TODO: Add regularization cost
+            cost += self.cost.fn(a, y)/len(data)
+        cost += 0.5*(lmbda/len(data))*sum(
+            np.linalg.norm(w)**2 for w in self.weights)
         return cost
 
     def save(self, filename):
@@ -332,3 +318,21 @@ def load(filename):
     net.biases = [np.array(b) for b in data["biases"]]
     return net
 
+#### Miscellaneous functions
+def vectorized_result(j):
+    """Return a 10-dimensional unit vector with a 1.0 in the j'th position
+    and zeroes elsewhere.  This is used to convert a digit (0...9)
+    into a corresponding desired output from the neural network.
+
+    """
+    e = np.zeros((10, 1))
+    e[j] = 1.0
+    return e
+
+def sigmoid(z):
+    """The sigmoid function."""
+    return 1.0/(1.0+np.exp(-z))
+
+def sigmoid_prime(z):
+    """Derivative of the sigmoid function."""
+    return sigmoid(z)*(1-sigmoid(z))
